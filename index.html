@@ -160,13 +160,13 @@
             const today = new Date();
 
             const firebaseConfig = {
-            apiKey: "AIzaSyDb-LJ7AZKkULEiv1BHDeiFEoIV6VYhMLc",
-            authDomain: "chore-dashboard-f1ff4.firebaseapp.com",
-            projectId: "chore-dashboard-f1ff4",
-            storageBucket: "chore-dashboard-f1ff4.appspot.com",
-            messagingSenderId: "629837733419",
-            appId: "1:629837733419:web:2eb18d247a195c8ea3946e",
-            measurementId: "G-R8CRF1V3DX"
+              apiKey: "AIzaSyDb-LJ7AZKkULEiv1BHDeiFEoIV6VYhMLc",
+              authDomain: "chore-dashboard-f1ff4.firebaseapp.com",
+              projectId: "chore-dashboard-f1ff4",
+              storageBucket: "chore-dashboard-f1ff4.firebasestorage.app",
+              messagingSenderId: "629837733419",
+              appId: "1:629837733419:web:2eb18d247a195c8ea3946e",
+              measurementId: "G-R8CRF1V3DX"
             };
             
             let app, db, auth;
@@ -193,7 +193,7 @@
             }
             
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-chore-app';
-            const choreDocRef = doc(db, `artifacts/${appId}/public/data/choreCollection`, "sharedState");
+            const choreDocRef = doc(db, `artifacts/${appId}/public/data/chores`, "sharedState");
 
             const initialAppState = {
                 chores: [
@@ -232,7 +232,16 @@
                 loadingOverlay.style.display = 'none';
             }, (error) => {
                 console.error("Error listening to chore state:", error);
-                loadingOverlay.innerHTML = "<p class='text-red-500'>Lost connection to dashboard. Trying to reconnect...</p>";
+                const errorContainer = loadingOverlay.querySelector('div');
+                 if(errorContainer) {
+                    errorContainer.innerHTML = `
+                        <div class="text-left max-w-md mx-auto bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
+                            <strong class="font-bold">Permission Error!</strong>
+                            <span class="block sm:inline">Could not read the dashboard data.</span>
+                            <p class="mt-2 text-sm">The database security rules for this app are preventing access. This is a backend configuration issue and cannot be fixed from the application code alone.</p>
+                        </div>
+                    `;
+                }
             });
             
             const updateFirestoreState = async (newState) => {

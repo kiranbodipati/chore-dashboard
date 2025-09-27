@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shared Chore Dashboard | Kiran & Sashwat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony -->
+    <!-- Application Structure Plan: A single-page dashboard is the most effective structure. It prioritizes immediate, actionable information. The layout is: 1) "At a Glance" for upcoming/overdue chores, providing instant clarity. 2) "Full Schedule" for a detailed, interactive view where users can mark tasks complete, automating the rotation. 3) "As-Needed Tasks" as a simple checklist. 4) "Chore Analytics" chart to visually track fairness. This task-oriented design is more usable than a static table, as it guides the user on what to do next and automates the core logic of chore rotation. -->
+    <!-- Visualization & Content Choices: 
+        - Recurring Chores -> Goal: Organize/Update -> Interactive HTML Table -> 'Complete' button interaction updates state -> Justification: A table is the best structure for this data; interactivity turns it into a functional tool. Method: Vanilla JS DOM manipulation.
+        - Upcoming Tasks -> Goal: Inform/Prioritize -> Dynamic 'Cards' -> Display-only, updates on state change -> Justification: Cards are visually effective for highlighting urgent information. Method: Vanilla JS.
+        - Chore Distribution -> Goal: Compare -> Bar Chart -> Hover for details, updates on completion -> Justification: Bar chart is ideal for comparing contribution between two parties. Library: Chart.js on Canvas.
+        - As-Needed Chores -> Goal: Organize -> Interactive Checklist -> Check/uncheck items -> Justification: Standard, intuitive UI for simple task lists. Method: Vanilla JS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F7F4;
+            color: #4A4A4A;
+        }
+        .task-card.overdue {
+            border-left-color: #EF4444;
+        }
+        .task-card.due-soon {
+            border-left-color: #F59E0B;
+        }
+        .task-card.on-track {
+            border-left-color: #22C55E;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-gray-800">Shared Chore Dashboard</h1>
+            <p class="text-lg text-gray-500 mt-2">Kiran & Sashwat's Household Hub</p>
+        </header>
+
+        <main class="space-y-12">
+            <section id="at-a-glance">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">At a Glance: Upcoming Chores</h2>
+                <p class="text-gray-600 mb-6">This section highlights chores that are currently overdue or coming up soon. It's your quick guide to what needs attention right now to keep our home running smoothly.</p>
+                <div id="upcoming-chores-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                </div>
+            </section>
+
+            <section id="full-schedule">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">Full Chore Schedule</h2>
+                 <p class="text-gray-600 mb-6">Here is the complete list of all our recurring chores. When you've finished a task, just click the "Complete" button. The schedule will automatically update turns and calculate the next due date.</p>
+                <div class="bg-white rounded-lg shadow-md overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="p-4 font-semibold">Chore</th>
+                                <th class="p-4 font-semibold">Frequency</th>
+                                <th class="p-4 font-semibold">Last Done By</th>
+                                <th class="p-4 font-semibold">Last Done Date</th>
+                                <th class="p-4 font-semibold">Next Turn</th>
+                                <th class="p-4 font-semibold">Status / Due In</th>
+                                <th class="p-4 font-semibold text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="chore-table-body">
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-6">
+                    <button id="add-schedule-chore-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">Add New Scheduled Chore</button>
+                    <form id="add-chore-form" class="hidden mt-4 p-4 bg-gray-50 rounded-lg border">
+                        <h3 class="font-semibold text-lg mb-2">New Scheduled Chore</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <input type="text" id="new-chore-name" placeholder="Chore Name" class="p-2 border rounded">
+                            <input type="number" id="new-chore-frequency" placeholder="Frequency in days" class="p-2 border rounded">
+                            <select id="new-chore-last-done" class="p-2 border rounded bg-white">
+                                <option value="Kiran">Kiran just did it</option>
+                                <option value="Sashwat">Sashwat just did it</option>
+                            </select>
+                        </div>
+                        <div class="mt-4">
+                            <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Save Chore</button>
+                            <button type="button" id="cancel-add-chore-btn" class="ml-2 text-gray-600">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                 <section id="as-needed-tasks">
+                    <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">As-Needed Tasks</h2>
+                    <p class="text-gray-600 mb-6">These are tasks to be done whenever they're needed. If you see something that needs attention, feel free to tackle it. This list helps us remember the small things.</p>
+                    <div class="bg-white p-6 rounded-lg shadow-md space-y-4">
+                        <div id="as-needed-kitchen">
+                            <h3 class="font-semibold text-lg text-gray-800 mb-2">Kitchen</h3>
+                            <ul class="space-y-3 pl-2" id="as-needed-kitchen-list"></ul>
+                            <form class="mt-4 flex gap-2" data-category="kitchen">
+                                <input type="text" placeholder="Add new kitchen task" class="flex-grow p-2 border rounded">
+                                <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg">Add</button>
+                            </form>
+                        </div>
+                         <div id="as-needed-general" class="pt-4 border-t mt-6">
+                            <h3 class="font-semibold text-lg text-gray-800 mb-2">General Areas</h3>
+                             <ul class="space-y-3 pl-2" id="as-needed-general-list"></ul>
+                             <form class="mt-4 flex gap-2" data-category="general">
+                                <input type="text" placeholder="Add new general task" class="flex-grow p-2 border rounded">
+                                <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg">Add</button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="chore-analytics">
+                    <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">Chore Analytics</h2>
+                    <p class="text-gray-600 mb-6">This chart provides a simple visual overview of completed chores to help us ensure tasks are being distributed fairly over time. It updates automatically each time a chore is marked as complete.</p>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="chart-container">
+                            <canvas id="chore-chart"></canvas>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const roommates = ['Kiran', 'Sashwat'];
+            const today = new Date('2025-09-27T12:00:00');
+
+            const parseFrequency = (freqStr) => {
+                if (freqStr.includes('days')) return parseInt(freqStr.split(' ')[1]);
+                if (freqStr.includes('Monthly')) return 30;
+                if (freqStr.includes('1.5 months')) return 45;
+                return 30;
+            };
+
+            let appState = {
+                chores: [
+                    { id: 1, name: 'Vacuum House', frequency: 'Every 10 days', lastDoneBy: 'Kiran', lastCompleted: new Date(today) },
+                    { id: 2, name: 'Mop Kitchen Floor', frequency: 'Every 10 days', lastDoneBy: 'Sashwat', lastCompleted: new Date(today) },
+                    { id: 3, name: 'Wash Kitchen Cloths/Drying Mat', frequency: 'Every 20 days', lastDoneBy: 'Kiran', lastCompleted: new Date(today) },
+                    { id: 4, name: 'Clean Microwave & Appliances', frequency: 'Monthly', lastDoneBy: 'Sashwat', lastCompleted: new Date(today) },
+                    { id: 5, name: 'Clean Stove Burner Plates', frequency: 'Every 1.5 months', lastDoneBy: 'Sashwat', lastCompleted: new Date(today) },
+                    { id: 6, name: 'Clean Balcony', frequency: 'Every 1.5 months', lastDoneBy: 'Kiran', lastCompleted: new Date(today) },
+                ],
+                completionLog: [
+                    { choreId: 1, person: 'Kiran', date: new Date(today) },
+                    { choreId: 2, person: 'Sashwat', date: new Date(today) },
+                    { choreId: 3, person: 'Kiran', date: new Date(today) },
+                    { choreId: 4, person: 'Sashwat', date: new Date(today) },
+                    { choreId: 5, person: 'Sashwat', date: new Date(today) },
+                    { choreId: 6, person: 'Kiran', date: new Date(today) },
+                ],
+                asNeeded: {
+                    kitchen: [
+                        'Take out trash, recycling, and compost',
+                        'Wash dishes / Load and unload the dishwasher',
+                        'Wipe down kitchen counters and stovetop (immediately on use)',
+                        'Clean out the refrigerator',
+                        'Restock shared goods (e.g., dish soap, paper towels)',
+                    ],
+                    general: [
+                        'Tidy up the living room/common areas',
+                        'Water any shared plants',
+                        'Sort and handle mail',
+                    ]
+                }
+            };
+            
+            const getChoreDetails = (chore) => {
+                const nextTurn = roommates.find(r => r !== chore.lastDoneBy);
+                const frequencyDays = parseFrequency(chore.frequency);
+                const dueDate = new Date(chore.lastCompleted);
+                dueDate.setDate(dueDate.getDate() + frequencyDays);
+                
+                const diffTime = dueDate - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                let status, statusColor, statusText;
+                if (diffDays < 0) {
+                    status = 'overdue';
+                    statusColor = 'text-red-600 font-semibold';
+                    statusText = `Overdue by ${Math.abs(diffDays)} day(s)`;
+                } else if (diffDays <= 3) {
+                    status = 'due-soon';
+                    statusColor = 'text-amber-600 font-semibold';
+                    statusText = `Due in ${diffDays} day(s)`;
+                } else {
+                    status = 'on-track';
+                    statusColor = 'text-green-600';
+                    statusText = `Due in ${diffDays} day(s)`;
+                }
+                if (diffDays === 0) statusText = 'Due today';
+
+
+                return { nextTurn, dueDate, diffDays, status, statusColor, statusText };
+            };
+
+            const choreTableBody = document.getElementById('chore-table-body');
+            const upcomingChoresContainer = document.getElementById('upcoming-chores-container');
+            const addChoreForm = document.getElementById('add-chore-form');
+            const addScheduleChoreBtn = document.getElementById('add-schedule-chore-btn');
+            const cancelAddChoreBtn = document.getElementById('cancel-add-chore-btn');
+            const asNeededForms = document.querySelectorAll('#as-needed-tasks form');
+            let choreChart = null;
+
+            const renderFullSchedule = () => {
+                choreTableBody.innerHTML = '';
+                const sortedChores = [...appState.chores].sort((a, b) => {
+                    const aDetails = getChoreDetails(a);
+                    const bDetails = getChoreDetails(b);
+                    return aDetails.diffDays - bDetails.diffDays;
+                });
+                
+                sortedChores.forEach(chore => {
+                    const details = getChoreDetails(chore);
+                    const lastCompletedDate = chore.lastCompleted.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const row = document.createElement('tr');
+                    row.className = 'border-b';
+                    row.innerHTML = `
+                        <td class="p-4 font-medium">${chore.name}</td>
+                        <td class="p-4 text-gray-600">${chore.frequency}</td>
+                        <td class="p-4 text-gray-600">${chore.lastDoneBy}</td>
+                        <td class="p-4 text-gray-600">${lastCompletedDate}</td>
+                        <td class="p-4 font-semibold text-gray-800">${details.nextTurn}</td>
+                        <td class="p-4 ${details.statusColor}">${details.statusText}</td>
+                        <td class="p-4 text-center">
+                            <button data-chore-id="${chore.id}" class="complete-btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                                Complete
+                            </button>
+                        </td>
+                    `;
+                    choreTableBody.appendChild(row);
+                });
+            };
+            
+            const renderUpcomingChores = () => {
+                upcomingChoresContainer.innerHTML = '';
+                const upcomingChores = appState.chores
+                    .map(chore => ({ chore, details: getChoreDetails(chore) }))
+                    .filter(({ details }) => details.diffDays <= 7)
+                    .sort((a, b) => a.details.diffDays - b.details.diffDays);
+                
+                if (upcomingChores.length === 0) {
+                     upcomingChoresContainer.innerHTML = `<div class="col-span-full bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-md" role="alert"><p class="font-bold">All clear!</p><p>No chores are due in the next week. Great job!</p></div>`;
+                     return;
+                }
+
+                upcomingChores.forEach(({ chore, details }) => {
+                    const card = document.createElement('div');
+                    card.className = `task-card bg-white p-5 rounded-lg shadow-md border-l-4 ${details.status}`;
+                    card.innerHTML = `
+                        <h3 class="font-bold text-lg text-gray-800">${chore.name}</h3>
+                        <p class="text-gray-600 mt-1">Turn: <span class="font-semibold">${details.nextTurn}</span></p>
+                        <p class="mt-3 font-semibold ${details.statusColor}">${details.statusText}</p>
+                    `;
+                    upcomingChoresContainer.appendChild(card);
+                });
+            };
+
+            const renderAsNeededTasks = () => {
+                const kitchenList = document.getElementById('as-needed-kitchen-list');
+                const generalList = document.getElementById('as-needed-general-list');
+                kitchenList.innerHTML = '';
+                generalList.innerHTML = '';
+
+                appState.asNeeded.kitchen.forEach(task => {
+                    kitchenList.innerHTML += `<li class="flex items-center"><span class="mr-3 text-blue-500">&#9634;</span>${task}</li>`;
+                });
+                appState.asNeeded.general.forEach(task => {
+                    generalList.innerHTML += `<li class="flex items-center"><span class="mr-3 text-blue-500">&#9634;</span>${task}</li>`;
+                });
+            };
+
+            const renderChart = () => {
+                const ctx = document.getElementById('chore-chart').getContext('2d');
+                const kiranCompletions = appState.completionLog.filter(c => c.person === 'Kiran').length;
+                const sashwatCompletions = appState.completionLog.filter(c => c.person === 'Sashwat').length;
+                
+                const data = {
+                    labels: ['Kiran', 'Sashwat'],
+                    datasets: [{
+                        label: 'Chores Completed',
+                        data: [kiranCompletions, sashwatCompletions],
+                        backgroundColor: ['rgba(59, 130, 246, 0.7)', 'rgba(34, 197, 94, 0.7)'],
+                        borderColor: ['rgba(59, 130, 246, 1)', 'rgba(34, 197, 94, 1)'],
+                        borderWidth: 1
+                    }]
+                };
+
+                if (choreChart) {
+                    choreChart.data = data;
+                    choreChart.update();
+                } else {
+                    choreChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: data,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        stepSize: 1
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Total Chores Completed'
+                                }
+                            }
+                        }
+                    });
+                }
+            };
+            
+            const handleCompleteChore = (choreId) => {
+                const chore = appState.chores.find(c => c.id === choreId);
+                if (!chore) return;
+                
+                const details = getChoreDetails(chore);
+                const completedBy = details.nextTurn;
+
+                chore.lastDoneBy = completedBy;
+                chore.lastCompleted = new Date(today);
+                
+                appState.completionLog.push({
+                    choreId: chore.id,
+                    person: completedBy,
+                    date: new Date(today)
+                });
+                
+                rerenderAll();
+            };
+            
+            addScheduleChoreBtn.addEventListener('click', () => {
+                addChoreForm.classList.remove('hidden');
+                addScheduleChoreBtn.classList.add('hidden');
+            });
+
+            cancelAddChoreBtn.addEventListener('click', () => {
+                addChoreForm.classList.add('hidden');
+                addScheduleChoreBtn.classList.remove('hidden');
+                addChoreForm.reset();
+            });
+
+            addChoreForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = document.getElementById('new-chore-name').value.trim();
+                const frequency = parseInt(document.getElementById('new-chore-frequency').value);
+                const lastDoneBy = document.getElementById('new-chore-last-done').value;
+
+                if (name && frequency > 0) {
+                    const newId = appState.chores.length > 0 ? Math.max(...appState.chores.map(c => c.id)) + 1 : 1;
+                    const newChore = {
+                        id: newId,
+                        name,
+                        frequency: `Every ${frequency} days`,
+                        lastDoneBy,
+                        lastCompleted: new Date(today)
+                    };
+                    appState.chores.push(newChore);
+                    
+                    addChoreForm.reset();
+                    addChoreForm.classList.add('hidden');
+                    addScheduleChoreBtn.classList.remove('hidden');
+                    rerenderAll();
+                }
+            });
+
+            asNeededForms.forEach(form => {
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const input = form.querySelector('input[type="text"]');
+                    const taskName = input.value.trim();
+                    const category = form.dataset.category;
+
+                    if (taskName && category) {
+                        appState.asNeeded[category].push(taskName);
+                        input.value = '';
+                        renderAsNeededTasks();
+                    }
+                });
+            });
+
+            choreTableBody.addEventListener('click', (e) => {
+                if (e.target.classList.contains('complete-btn')) {
+                    const choreId = parseInt(e.target.getAttribute('data-chore-id'));
+                    handleCompleteChore(choreId);
+                }
+            });
+
+            const rerenderAll = () => {
+                renderFullSchedule();
+                renderUpcomingChores();
+                renderAsNeededTasks();
+                renderChart();
+            };
+
+            rerenderAll();
+        });
+    </script>
+</body>
+</html>
+

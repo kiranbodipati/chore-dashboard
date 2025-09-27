@@ -184,7 +184,7 @@
             }
             
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-chore-app';
-            const choreDocRef = doc(db, `artifacts/${appId}/public/data/choreData`, "mainState");
+            const choreDocRef = doc(db, `artifacts/${appId}/public/data/choreCollection`, "sharedState");
 
             const initialAppState = {
                 chores: [

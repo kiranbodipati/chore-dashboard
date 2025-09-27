@@ -159,6 +159,7 @@
             const roommates = ['Kiran', 'Sashwat'];
             const today = new Date();
 
+
             const firebaseConfig = {
               apiKey: "AIzaSyDb-LJ7AZKkULEiv1BHDeiFEoIV6VYhMLc",
               authDomain: "chore-dashboard-f1ff4.firebaseapp.com",
@@ -198,10 +199,10 @@
             const initialAppState = {
                 chores: [
                     { id: 1, name: 'Vacuum House', frequency: 'Every 10 days', lastDoneBy: 'Kiran', lastCompleted: Timestamp.fromDate(new Date()) },
-                    { id: 2, name: 'Mop Kitchen Floor', frequency: 'Every 10 days', lastDoneBy: 'Sashwat', lastCompleted: Timestamp.fromDate(new Date()) },
-                    { id: 3, name: 'Wash Kitchen Cloths/Drying Mat', frequency: 'Every 20 days', lastDoneBy: 'Kiran', lastCompleted: Timestamp.fromDate(new Date()) },
-                    { id: 4, name: 'Clean Microwave & Appliances', frequency: 'Monthly', lastDoneBy: 'Sashwat', lastCompleted: Timestamp.fromDate(new Date()) },
-                    { id: 5, name: 'Clean Stove Burner Plates', frequency: 'Every 1.5 months', lastDoneBy: 'Sashwat', lastCompleted: Timestamp.fromDate(new Date()) },
+                    { id: 2, name: 'Mop Kitchen Floor', frequency: 'Every 10 days', lastDoneBy: 'Kiran', lastCompleted: Timestamp.fromDate(new Date()) },
+                    { id: 3, name: 'Wash Kitchen Cloths/Drying Mat', frequency: 'Every 20 days', lastDoneBy: 'Sashwat', lastCompleted: Timestamp.fromDate(new Date()) },
+                    { id: 4, name: 'Clean Microwave & Appliances', frequency: 'Monthly', lastDoneBy: 'Kiran', lastCompleted: Timestamp.fromDate(new Date()) },
+                    { id: 5, name: 'Clean Stove Burner Plates', frequency: 'Every 1.5 months', lastDoneBy: 'Kiran', lastCompleted: Timestamp.fromDate(new Date()) },
                     { id: 6, name: 'Clean Balcony', frequency: 'Every 1.5 months', lastDoneBy: 'Kiran', lastCompleted: Timestamp.fromDate(new Date()) },
                 ],
                 completionLog: [],
@@ -407,15 +408,27 @@
             const handleCompleteChore = (choreId) => {
                 const choreIndex = appState.chores.findIndex(c => c.id === choreId);
                 if (choreIndex === -1) return;
-                
-                const chore = appState.chores[choreIndex];
-                const details = getChoreDetails(chore);
+
+                const choreToUpdate = appState.chores[choreIndex];
+                const details = getChoreDetails(choreToUpdate);
                 const completedBy = details.nextTurn;
+
+                const newChores = appState.chores.map(chore =>
+                    chore.id === choreId
+                        ? { ...chore, lastDoneBy: completedBy, lastCompleted: new Date() }
+                        : chore
+                );
+
+                const newCompletionLog = [
+                    ...appState.completionLog,
+                    { choreId: choreToUpdate.id, person: completedBy, date: new Date() }
+                ];
                 
-                const updatedState = JSON.parse(JSON.stringify(appState)); // Deep copy
-                updatedState.chores[choreIndex].lastDoneBy = completedBy;
-                updatedState.chores[choreIndex].lastCompleted = new Date();
-                updatedState.completionLog.push({ choreId: chore.id, person: completedBy, date: new Date() });
+                const updatedState = {
+                    ...appState,
+                    chores: newChores,
+                    completionLog: newCompletionLog
+                };
                 
                 updateFirestoreState(updatedState);
             };
@@ -444,8 +457,10 @@
                         lastDoneBy, lastCompleted: new Date()
                     };
                     
-                    const updatedState = JSON.parse(JSON.stringify(appState));
-                    updatedState.chores.push(newChore);
+                    const updatedState = {
+                        ...appState,
+                        chores: [...appState.chores, newChore]
+                    };
                     updateFirestoreState(updatedState);
 
                     addChoreForm.reset();
@@ -462,8 +477,13 @@
                     const category = form.dataset.category;
 
                     if (taskName && category) {
-                        const updatedState = JSON.parse(JSON.stringify(appState));
-                        updatedState.asNeeded[category].push(taskName);
+                         const updatedState = {
+                            ...appState,
+                            asNeeded: {
+                                ...appState.asNeeded,
+                                [category]: [...appState.asNeeded[category], taskName]
+                            }
+                        };
                         updateFirestoreState(updatedState);
                         input.value = '';
                     }

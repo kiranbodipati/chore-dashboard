@@ -49,6 +49,15 @@
     </style>
 </head>
 <body class="antialiased">
+    <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 z-50 flex items-center justify-center">
+        <div class="text-center">
+            <svg class="animate-spin h-8 w-8 text-gray-700 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="text-lg text-gray-600">Connecting to dashboard...</p>
+        </div>
+    </div>
     <div class="container mx-auto p-4 md:p-8 max-w-7xl">
         <header class="text-center mb-10">
             <h1 class="text-4xl font-bold text-gray-800">Shared Chore Dashboard</h1>
@@ -65,7 +74,7 @@
 
             <section id="full-schedule">
                 <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">Full Chore Schedule</h2>
-                 <p class="text-gray-600 mb-6">Here is the complete list of all our recurring chores. When you've finished a task, just click the "Complete" button. The schedule will automatically update turns and calculate the next due date.</p>
+                 <p class="text-gray-600 mb-6">Here is the complete list of all our recurring chores. When you'vefinished a task, just click the "Complete" button. The schedule will automatically update turns and calculate the next due date.</p>
                 <div class="bg-white rounded-lg shadow-md overflow-x-auto">
                     <table class="w-full text-left">
                         <thead class="bg-gray-50 border-b">
@@ -88,8 +97,8 @@
                     <form id="add-chore-form" class="hidden mt-4 p-4 bg-gray-50 rounded-lg border">
                         <h3 class="font-semibold text-lg mb-2">New Scheduled Chore</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <input type="text" id="new-chore-name" placeholder="Chore Name" class="p-2 border rounded">
-                            <input type="number" id="new-chore-frequency" placeholder="Frequency in days" class="p-2 border rounded">
+                            <input type="text" id="new-chore-name" placeholder="Chore Name" class="p-2 border rounded" required>
+                            <input type="number" id="new-chore-frequency" placeholder="Frequency in days" class="p-2 border rounded" required min="1">
                             <select id="new-chore-last-done" class="p-2 border rounded bg-white">
                                 <option value="Kiran">Kiran just did it</option>
                                 <option value="Sashwat">Sashwat just did it</option>
@@ -112,7 +121,7 @@
                             <h3 class="font-semibold text-lg text-gray-800 mb-2">Kitchen</h3>
                             <ul class="space-y-3 pl-2" id="as-needed-kitchen-list"></ul>
                             <form class="mt-4 flex gap-2" data-category="kitchen">
-                                <input type="text" placeholder="Add new kitchen task" class="flex-grow p-2 border rounded">
+                                <input type="text" placeholder="Add new kitchen task" class="flex-grow p-2 border rounded" required>
                                 <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg">Add</button>
                             </form>
                         </div>
@@ -120,7 +129,7 @@
                             <h3 class="font-semibold text-lg text-gray-800 mb-2">General Areas</h3>
                              <ul class="space-y-3 pl-2" id="as-needed-general-list"></ul>
                              <form class="mt-4 flex gap-2" data-category="general">
-                                <input type="text" placeholder="Add new general task" class="flex-grow p-2 border rounded">
+                                <input type="text" placeholder="Add new general task" class="flex-grow p-2 border rounded" required>
                                 <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg">Add</button>
                             </form>
                         </div>
@@ -140,49 +149,102 @@
         </main>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const loadingOverlay = document.getElementById('loading-overlay');
             const roommates = ['Kiran', 'Sashwat'];
-            const today = new Date('2025-09-27T12:00:00');
+            const today = new Date();
+
+            const firebaseConfig = {
+            apiKey: "AIzaSyDb-LJ7AZKkULEiv1BHDeiFEoIV6VYhMLc",
+            authDomain: "chore-dashboard-f1ff4.firebaseapp.com",
+            projectId: "chore-dashboard-f1ff4",
+            storageBucket: "chore-dashboard-f1ff4.appspot.com",
+            messagingSenderId: "629837733419",
+            appId: "1:629837733419:web:2eb18d247a195c8ea3946e",
+            measurementId: "G-R8CRF1V3DX"
+            };
+            
+            let app, db, auth;
+            
+            try {
+                 const config = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
+                 app = initializeApp(config);
+                 db = getFirestore(app);
+                 auth = getAuth(app);
+                 await signInAnonymously(auth);
+            } catch(e) {
+                console.error("Firebase initialization failed:", e);
+                loadingOverlay.innerHTML = "<p class='text-red-500'>Error connecting to the dashboard service. Please refresh.</p>";
+                return;
+            }
+            
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-chore-app';
+            const choreDocRef = doc(db, `artifacts/${appId}/public/data/choreData`, "mainState");
+
+            const initialAppState = {
+                chores: [
+                    { id: 1, name: 'Vacuum House', frequency: 'Every 10 days', lastDoneBy: 'Kiran', lastCompleted: Timestamp.fromDate(new Date()) },
+                    { id: 2, name: 'Mop Kitchen Floor', frequency: 'Every 10 days', lastDoneBy: 'Sashwat', lastCompleted: Timestamp.fromDate(new Date()) },
+                    { id: 3, name: 'Wash Kitchen Cloths/Drying Mat', frequency: 'Every 20 days', lastDoneBy: 'Kiran', lastCompleted: Timestamp.fromDate(new Date()) },
+                    { id: 4, name: 'Clean Microwave & Appliances', frequency: 'Monthly', lastDoneBy: 'Sashwat', lastCompleted: Timestamp.fromDate(new Date()) },
+                    { id: 5, name: 'Clean Stove Burner Plates', frequency: 'Every 1.5 months', lastDoneBy: 'Sashwat', lastCompleted: Timestamp.fromDate(new Date()) },
+                    { id: 6, name: 'Clean Balcony', frequency: 'Every 1.5 months', lastDoneBy: 'Kiran', lastCompleted: Timestamp.fromDate(new Date()) },
+                ],
+                completionLog: [],
+                asNeeded: {
+                    kitchen: [ 'Take out trash, recycling, and compost', 'Wash dishes / Load and unload the dishwasher' ],
+                    general: [ 'Tidy up the living room/common areas', 'Water any shared plants' ]
+                }
+            };
+            
+            let appState = null;
+
+            onSnapshot(choreDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    appState = {
+                        ...data,
+                        chores: data.chores.map(c => ({...c, lastCompleted: c.lastCompleted.toDate()})),
+                        completionLog: data.completionLog.map(l => ({...l, date: l.date.toDate()}))
+                    };
+                } else {
+                    appState = {
+                        ...initialAppState,
+                        chores: initialAppState.chores.map(c => ({...c, lastCompleted: c.lastCompleted.toDate()})),
+                    };
+                    updateFirestoreState(appState);
+                }
+                rerenderAll();
+                loadingOverlay.style.display = 'none';
+            }, (error) => {
+                console.error("Error listening to chore state:", error);
+                loadingOverlay.innerHTML = "<p class='text-red-500'>Lost connection to dashboard. Trying to reconnect...</p>";
+            });
+            
+            const updateFirestoreState = async (newState) => {
+                try {
+                    const firestoreReadyState = {
+                        ...newState,
+                        chores: newState.chores.map(c => ({...c, lastCompleted: Timestamp.fromDate(c.lastCompleted)})),
+                        completionLog: newState.completionLog.map(l => ({...l, date: Timestamp.fromDate(l.date)}))
+                    };
+                    await setDoc(choreDocRef, firestoreReadyState, { merge: true });
+                } catch (e) {
+                    console.error("Failed to save state to Firestore:", e);
+                }
+            };
 
             const parseFrequency = (freqStr) => {
+                if (typeof freqStr !== 'string') return 30;
                 if (freqStr.includes('days')) return parseInt(freqStr.split(' ')[1]);
                 if (freqStr.includes('Monthly')) return 30;
                 if (freqStr.includes('1.5 months')) return 45;
                 return 30;
-            };
-
-            let appState = {
-                chores: [
-                    { id: 1, name: 'Vacuum House', frequency: 'Every 10 days', lastDoneBy: 'Kiran', lastCompleted: new Date(today) },
-                    { id: 2, name: 'Mop Kitchen Floor', frequency: 'Every 10 days', lastDoneBy: 'Sashwat', lastCompleted: new Date(today) },
-                    { id: 3, name: 'Wash Kitchen Cloths/Drying Mat', frequency: 'Every 20 days', lastDoneBy: 'Kiran', lastCompleted: new Date(today) },
-                    { id: 4, name: 'Clean Microwave & Appliances', frequency: 'Monthly', lastDoneBy: 'Sashwat', lastCompleted: new Date(today) },
-                    { id: 5, name: 'Clean Stove Burner Plates', frequency: 'Every 1.5 months', lastDoneBy: 'Sashwat', lastCompleted: new Date(today) },
-                    { id: 6, name: 'Clean Balcony', frequency: 'Every 1.5 months', lastDoneBy: 'Kiran', lastCompleted: new Date(today) },
-                ],
-                completionLog: [
-                    { choreId: 1, person: 'Kiran', date: new Date(today) },
-                    { choreId: 2, person: 'Sashwat', date: new Date(today) },
-                    { choreId: 3, person: 'Kiran', date: new Date(today) },
-                    { choreId: 4, person: 'Sashwat', date: new Date(today) },
-                    { choreId: 5, person: 'Sashwat', date: new Date(today) },
-                    { choreId: 6, person: 'Kiran', date: new Date(today) },
-                ],
-                asNeeded: {
-                    kitchen: [
-                        'Take out trash, recycling, and compost',
-                        'Wash dishes / Load and unload the dishwasher',
-                        'Wipe down kitchen counters and stovetop (immediately on use)',
-                        'Clean out the refrigerator',
-                        'Restock shared goods (e.g., dish soap, paper towels)',
-                    ],
-                    general: [
-                        'Tidy up the living room/common areas',
-                        'Water any shared plants',
-                        'Sort and handle mail',
-                    ]
-                }
             };
             
             const getChoreDetails = (chore) => {
@@ -191,7 +253,7 @@
                 const dueDate = new Date(chore.lastCompleted);
                 dueDate.setDate(dueDate.getDate() + frequencyDays);
                 
-                const diffTime = dueDate - today;
+                const diffTime = dueDate.setHours(0,0,0,0) - today.setHours(0,0,0,0);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
                 let status, statusColor, statusText;
@@ -210,7 +272,6 @@
                 }
                 if (diffDays === 0) statusText = 'Due today';
 
-
                 return { nextTurn, dueDate, diffDays, status, statusColor, statusText };
             };
 
@@ -223,11 +284,10 @@
             let choreChart = null;
 
             const renderFullSchedule = () => {
+                if (!appState) return;
                 choreTableBody.innerHTML = '';
                 const sortedChores = [...appState.chores].sort((a, b) => {
-                    const aDetails = getChoreDetails(a);
-                    const bDetails = getChoreDetails(b);
-                    return aDetails.diffDays - bDetails.diffDays;
+                    return getChoreDetails(a).diffDays - getChoreDetails(b).diffDays;
                 });
                 
                 sortedChores.forEach(chore => {
@@ -253,6 +313,7 @@
             };
             
             const renderUpcomingChores = () => {
+                if (!appState) return;
                 upcomingChoresContainer.innerHTML = '';
                 const upcomingChores = appState.chores
                     .map(chore => ({ chore, details: getChoreDetails(chore) }))
@@ -277,6 +338,7 @@
             };
 
             const renderAsNeededTasks = () => {
+                if (!appState) return;
                 const kitchenList = document.getElementById('as-needed-kitchen-list');
                 const generalList = document.getElementById('as-needed-general-list');
                 kitchenList.innerHTML = '';
@@ -291,6 +353,7 @@
             };
 
             const renderChart = () => {
+                if (!appState) return;
                 const ctx = document.getElementById('chore-chart').getContext('2d');
                 const kiranCompletions = appState.completionLog.filter(c => c.person === 'Kiran').length;
                 const sashwatCompletions = appState.completionLog.filter(c => c.person === 'Sashwat').length;
@@ -316,45 +379,27 @@
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    ticks: {
-                                        stepSize: 1
-                                    }
-                                }
-                            },
-                            plugins: {
-                                legend: {
-                                    display: false
-                                },
-                                title: {
-                                    display: true,
-                                    text: 'Total Chores Completed'
-                                }
-                            }
+                            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                            plugins: { legend: { display: false }, title: { display: true, text: 'Total Chores Completed' } }
                         }
                     });
                 }
             };
             
             const handleCompleteChore = (choreId) => {
-                const chore = appState.chores.find(c => c.id === choreId);
-                if (!chore) return;
+                const choreIndex = appState.chores.findIndex(c => c.id === choreId);
+                if (choreIndex === -1) return;
                 
+                const chore = appState.chores[choreIndex];
                 const details = getChoreDetails(chore);
                 const completedBy = details.nextTurn;
-
-                chore.lastDoneBy = completedBy;
-                chore.lastCompleted = new Date(today);
                 
-                appState.completionLog.push({
-                    choreId: chore.id,
-                    person: completedBy,
-                    date: new Date(today)
-                });
+                const updatedState = JSON.parse(JSON.stringify(appState)); // Deep copy
+                updatedState.chores[choreIndex].lastDoneBy = completedBy;
+                updatedState.chores[choreIndex].lastCompleted = new Date();
+                updatedState.completionLog.push({ choreId: chore.id, person: completedBy, date: new Date() });
                 
-                rerenderAll();
+                updateFirestoreState(updatedState);
             };
             
             addScheduleChoreBtn.addEventListener('click', () => {
@@ -377,18 +422,17 @@
                 if (name && frequency > 0) {
                     const newId = appState.chores.length > 0 ? Math.max(...appState.chores.map(c => c.id)) + 1 : 1;
                     const newChore = {
-                        id: newId,
-                        name,
-                        frequency: `Every ${frequency} days`,
-                        lastDoneBy,
-                        lastCompleted: new Date(today)
+                        id: newId, name, frequency: `Every ${frequency} days`,
+                        lastDoneBy, lastCompleted: new Date()
                     };
-                    appState.chores.push(newChore);
                     
+                    const updatedState = JSON.parse(JSON.stringify(appState));
+                    updatedState.chores.push(newChore);
+                    updateFirestoreState(updatedState);
+
                     addChoreForm.reset();
                     addChoreForm.classList.add('hidden');
                     addScheduleChoreBtn.classList.remove('hidden');
-                    rerenderAll();
                 }
             });
 
@@ -400,9 +444,10 @@
                     const category = form.dataset.category;
 
                     if (taskName && category) {
-                        appState.asNeeded[category].push(taskName);
+                        const updatedState = JSON.parse(JSON.stringify(appState));
+                        updatedState.asNeeded[category].push(taskName);
+                        updateFirestoreState(updatedState);
                         input.value = '';
-                        renderAsNeededTasks();
                     }
                 });
             });
@@ -420,8 +465,6 @@
                 renderAsNeededTasks();
                 renderChart();
             };
-
-            rerenderAll();
         });
     </script>
 </body>

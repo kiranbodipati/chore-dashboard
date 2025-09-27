@@ -49,7 +49,7 @@
     </style>
 </head>
 <body class="antialiased">
-    <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 z-50 flex items-center justify-center">
+    <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 z-50 flex items-center justify-center p-4">
         <div class="text-center">
             <svg class="animate-spin h-8 w-8 text-gray-700 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -179,7 +179,16 @@
                  await signInAnonymously(auth);
             } catch(e) {
                 console.error("Firebase initialization failed:", e);
-                loadingOverlay.innerHTML = "<p class='text-red-500'>Error connecting to the dashboard service. Please refresh.</p>";
+                const errorContainer = loadingOverlay.querySelector('div');
+                if(errorContainer) {
+                    errorContainer.innerHTML = `
+                        <div class="text-left max-w-md mx-auto bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
+                            <strong class="font-bold">Connection Error!</strong>
+                            <span class="block sm:inline">Could not connect to the dashboard service.</span>
+                            <p class="mt-2 text-sm">This usually happens if the Firebase configuration is incorrect. Please ensure you have replaced the placeholder <strong>firebaseConfig</strong> object in the HTML file with the one from your own Firebase project.</p>
+                        </div>
+                    `;
+                }
                 return;
             }
             
